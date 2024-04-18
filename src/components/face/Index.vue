@@ -11,14 +11,16 @@
     <div>
       <button @click="openCamera">打开摄像头</button>
       <button @click="stopCamera">关闭摄像头</button>
+      <button @click="authByFace">人脸登录</button>
     </div>
   </div>
 </template>
 
 <script>
-import { userMedia } from '../../utils/utils.js'
-import '../../assets/js/tracking-min.js'
-import '../../assets/js/face-min.js'
+import { userMedia } from '@/utils/utils.js'
+import '@/assets/js/tracking-min.js'
+import '@/assets/js/face-min.js'
+import request from '@/utils/request.js'
 
 export default {
   name: 'MyFace',
@@ -26,19 +28,20 @@ export default {
   data() {
     return {
       videoObj: null,
-      trackerTask: null
+      trackerTask: null,
+      catchedFaceImg: null,
+      lastTime: 0
     }
   },
 
   mounted() {
-    this.openCamera()
+    // this.openCamera()
   },
 
   methods: {
     openCamera() {
       // 有可能触发一些其他的按钮会重新获取
       this.$nextTick(() => {
-        // this.stopCamera()
         const canvas = document.getElementById('canvas')
         const context = canvas.getContext('2d')
         this.videoObj = document.getElementById('video')
@@ -62,9 +65,9 @@ export default {
           event.data.forEach((rect) => {
             // 绘制到 canvas
             context.drawImage(this.videoObj, 0, 0, canvas.width, canvas.height)
-            context.font = '16px Helvetica'
-            context.strokeStyle = '#1890ff'
-            context.strokeRect(rect.x, rect.y, rect.width, rect.height)
+            // context.font = '16px Helvetica'
+            // context.strokeStyle = '#1890ff'
+            // context.strokeRect(rect.x, rect.y, rect.width, rect.height)
           })
 
           if (event.data.length !== 0) {
@@ -72,11 +75,43 @@ export default {
             // canvas 调用 toDataURL
             const img = canvas.toDataURL('image/png')
             console.log('检测到了人脸～～')
-            console.log(img)
-            this.stopCamera()
+            let now = Date.now()
+            if (now - this.lastTime > 1000) {
+              console.log('发送请求～～～')
+              this.lastTime = now
+              this.recognizeFace(img)
+            }
           }
         })
       })
+    },
+
+    authByFace(img) {
+      let imgStr = img.split(',')[1]
+      request
+        .post('api/face/authByFace', {
+          faceImg: imgStr
+        })
+        .then((res) => {
+          console.log(res)
+        })
+        .catch((err) => {
+          console.error(err)
+        })
+    },
+
+    recognizeFace(img) {
+      let imgStr = img.split(',')[1]
+      request
+        .post('api/face/recognize', {
+          image: imgStr
+        })
+        .then((res) => {
+          console.log(res)
+        })
+        .catch((err) => {
+          console.error(err)
+        })
     },
 
     stopCamera() {
